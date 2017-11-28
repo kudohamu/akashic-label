@@ -533,21 +533,22 @@ class Label extends g.CacheableE {
 				var text = fragment.replace(/\r\n|\n/g, "\r");
 
 				for (var j = 0; j < text.length; j++) {
-					if (text[j] === "\r") {
+					var t = text[j];
+					if (t === "\r") {
 						this._tryPushCurrentStringDrawInfo(state);
 						this._feedLine(state);
 					} else {
-						var glyph = this.font.glyphForCharacter(text[j].charCodeAt(0));
+						var glyph = this.font.glyphForCharacter(t.charCodeAt(0));
 						var glyphScale = this.fontSize / this.font.size;
 						var glyphWidth = glyph.advanceWidth * glyphScale;
 						if (glyphWidth <= 0) {
 							continue;
 						}
-						if (this._needLineBreak(state, glyphWidth)) {
+						if (this._needLineBreak(state, glyphWidth) && !this._isPunctuationMark(t)) {
 							this._tryPushCurrentStringDrawInfo(state);
 							this._feedLine(state);
 						}
-						this._addToCurrentStringDrawInfo(state, glyphWidth, glyph, text[j]);
+						this._addToCurrentStringDrawInfo(state, glyphWidth, glyph, t);
 					}
 				}
 				this._tryPushCurrentStringDrawInfo(state);
@@ -566,6 +567,10 @@ class Label extends g.CacheableE {
 		}
 		this._feedLine(state); // 行末ではないが、状態をflushするため改行処理を呼ぶ
 		return state.resultLines;
+	}
+
+	private _isPunctuationMark(str: string): boolean {
+		return (str === "、" || str === "。");
 	}
 
 	private _createStringGlyph(text: string, font: g.Font): g.Glyph[] {
@@ -650,6 +655,10 @@ class Label extends g.CacheableE {
 			state.currentLineInfo.minMinusOffsetY += minOffsetYInRange;
 		}
 		state.resultLines.push(state.currentLineInfo);
+
+		// ぶら下げ組みのために_feedLineを遅延した場合、widthを更新する必要がある
+		this.width = Math.max(this.width, state.currentLineInfo.width);
+
 		state.currentLineInfo = {
 			sourceText: "",
 			fragmentDrawInfoArray: [],
